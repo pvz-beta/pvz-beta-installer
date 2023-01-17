@@ -25,25 +25,29 @@ object Visitor extends SimpleFileVisitor[Path] {
 @main
 def main(@arg(doc = "样例：6.15") v1: String, 
          @arg(doc = "样例：R1（默认值为 R1）") v2: String = "R1", 
-         @arg(doc = "样例：beta6.15.exe（默认值为 beta$v1.exe）") exeName: String = "DEFAULT"): Unit = {
-  if(exeName != "null") {
-    val es = Paths.get(if(exeName == "DEFAULT") s"beta$v1.exe" else exeName)
-    if(Files.exists(es)) {
-      val eo = base.resolve("PlantsVsZombies.exe")
-      if(Files.exists(eo)) {
-        Files.copy(es, eo, StandardCopyOption.REPLACE_EXISTING)
-        println(s"成功用 ${es.toAbsolutePath} 覆盖 ${eo.toAbsolutePath}")
-      } else {
-        Files.copy(es, eo)
-        println(s"成功将 ${es.toAbsolutePath} 复制为 ${eo.toAbsolutePath}")
-      }
-    } else {
-      println(s"${es.toAbsolutePath} 不存在，跳过复制阶段")
-    }
+         @arg(doc = "样例：beta6.15.exe（默认值为 beta$v1.exe）") exeName: String = null): Unit = {
+  Files.list(base).filter { p =>
+    val fn = p.getFileName.toString
+    fn == "PlantsVsZombies.exe" || (fn.endsWith(".exe") && fn.startsWith("beta"))
+  }.forEach { p => 
+    Files.delete(p)
+    println(s"成功删除 $p")
   }
   
+
+  val en = if(exeName == null) s"beta$v1.exe" else if(exeName.endsWith(".exe")) exeName else s"$exeName.exe"
+  val es = Paths.get(en)
+  if(Files.notExists(es)) {
+    System.err.println(s"$es 不存在")
+    return
+  }
+    
+  val eo = base.resolve(en)
+  Files.copy(es, eo)
+  println(s"成功将 $es 复制为 $eo")
+  
   Files.walkFileTree(base, Visitor)
-  val s = StringTemplate.gen(items, v1, v2)
+  val s = StringTemplate.gen(items, v1, v2, en)
   Files.writeString(Paths.get("植物大战僵尸β版整合包.nsi"), s, java.nio.charset.StandardCharsets.UTF_16)
   println("成功生成 NSI 文件")
 }
